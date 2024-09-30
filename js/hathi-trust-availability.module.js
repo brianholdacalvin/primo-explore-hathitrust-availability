@@ -142,19 +142,40 @@ angular
         return self.entityId ? link + '?signon=swle:' + self.entityId : link;
       };
 
-      var isOclcNum = function (value) {
-        // VE OCLC numbers include the 035 org prefix
-        return self.isVE ? value.match(/^(\(ocolc\))\d+$/i) : true;
+     var isOclcNum = function isOclcNum(value) {
+          return value.match(/^(\(ocolc\))\d+$/i);
       };
-
-      var updateHathiTrustAvailability = function () {
-        var hathiTrustIds = (
-          self.prmSearchResultAvailabilityLine.result.pnx.addata.oclcid || []
-        )
-          .filter(isOclcNum)
-          .map(function (id) {
-            return 'oclc:' + id.toLowerCase().replace('(ocolc)', '');
-          });
+      
+      var isOcmNum = function isOcmNum(value) {
+          return value.match(/^(ocm)\d+$/i);
+      };
+      
+      var isOcnNum = function isOclcNum(value) {
+          return value.match(/^(\(ocn\))\d+$/i);
+      };
+      
+      var isOnNum = function isOcmNum(value) {
+          return value.match(/^(on)\d+$/i);
+      };
+      
+      var updateHathiTrustAvailability = function updateHathiTrustAvailability() {
+          console.log("035 looks like: " + self.prmSearchResultAvailabilityLine.result.pnx.addata.oclcid);
+      
+          // Retrieve the oclc id list and filter for both oclc and ocm numbers
+          var hathiTrustIds = (self.prmSearchResultAvailabilityLine.result.pnx.addata.oclcid || []).filter(function(id) {
+              return isOclcNum(id) || isOcmNum(id) || isOcnNum(id) || isOnNum(id); // Check for all identifiers
+          }).map(function(id) {
+              if (isOclcNum(id)) {
+                  return 'oclc:' + id.toLowerCase().replace('(ocolc)', '');
+              } else if (isOcmNum(id)) {
+                  return 'oclc:' + id.toLowerCase().replace('ocm', ''); // even though it's ocm, we're calling it oclc for hathitrust
+              } else if (isOcnNum(id)) {
+                  return 'oclc:' + id.toLowerCase().replace('ocn', ''); // even though it's ocn, we're calling it oclc for hathitrust
+              } else if (isOnNum(id)) {
+                  return 'oclc:' + id.toLowerCase().replace('on', ''); // even though it's on, we're calling it oclc for hathitrust
+              }
+          }).filter(Boolean); // Remove any undefined values from the mapping
+        
         hathiTrust[self.ignoreCopyright ? 'findRecord' : 'findFullViewRecord'](
           hathiTrustIds
         ).then(function (res) {
